@@ -1,0 +1,15 @@
+<network>
+  <name>k8-lab-net</name>
+  <bridge name='virbr-k8' stp='on' delay='0'/>
+  <forward mode='nat'/>
+  <domain name='lab.internal'/>
+  <ip address='192.168.150.1' netmask='255.255.255.0'>
+    <dhcp>
+      <range start='192.168.150.100' end='192.168.150.199'/>
+      <host mac='52:54:00:15:00:10' name='cp-01' ip='192.168.150.10'/>
+      <host mac='52:54:00:15:00:11' name='wk-01' ip='192.168.150.11'/>
+      <host mac='52:54:00:15:00:12' name='wk-02' ip='192.168.150.12'/>
+      <host mac='52:54:00:15:00:13' name='st-01' ip='192.168.150.13'/>
+    </dhcp>
+  </ip>
+</network>

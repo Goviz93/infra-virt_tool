@@ -48,26 +48,26 @@ virsh list --all
 Validar y revisar el plan:
 
 ```bash
-python3 -m virt_tool.cli validate --config configs/example-lab.yaml
-python3 -m virt_tool.cli plan --config configs/example-lab.yaml
+sudo python3 -m virt_tool.cli validate --config configs/example-lab.yaml
+sudo python3 -m virt_tool.cli plan --config configs/example-lab.yaml
 ```
 
 Generar y aplicar recursos:
 
 ```bash
-python3 -m virt_tool.cli render-network --config configs/example-lab.yaml
-python3 -m virt_tool.cli build --config configs/example-lab.yaml
-python3 -m virt_tool.cli create-network --config configs/example-lab.yaml --apply
-python3 -m virt_tool.cli create-disks --config configs/example-lab.yaml --apply
-python3 -m virt_tool.cli create-cloud-init --config configs/example-lab.yaml --apply
-python3 -m virt_tool.cli create-vms --config configs/example-lab.yaml --apply
+sudo python3 -m virt_tool.cli render-network --config configs/example-lab.yaml
+sudo python3 -m virt_tool.cli build --config configs/example-lab.yaml
+sudo python3 -m virt_tool.cli create-network --config configs/example-lab.yaml --apply
+sudo python3 -m virt_tool.cli create-disks --config configs/example-lab.yaml --apply
+sudo python3 -m virt_tool.cli create-cloud-init --config configs/example-lab.yaml --apply
+sudo python3 -m virt_tool.cli create-vms --config configs/example-lab.yaml --apply
 ```
 
 Consultar y destruir:
 
 ```bash
-python3 -m virt_tool.cli status --config configs/example-lab.yaml
-python3 -m virt_tool.cli destroy --config configs/example-lab.yaml --apply --yes
+sudo python3 -m virt_tool.cli status --config configs/example-lab.yaml
+sudo python3 -m virt_tool.cli destroy --config configs/example-lab.yaml --apply --yes
 ```
 
 ## Operación con virsh

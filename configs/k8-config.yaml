@@ -1,0 +1,93 @@
+tool:
+  name: k8-lab
+  description: Balanced VM layout for the local cluster host
+
+network:
+  name: k8-lab-net
+  mode: nat
+  bridge: virbr-k8
+  subnet: 192.168.150.0/24
+  gateway: 192.168.150.1
+  dhcp_range_start: 192.168.150.100
+  dhcp_range_end: 192.168.150.199
+  domain: lab.internal
+  dns:
+    - 192.168.150.1
+
+defaults:
+  libvirt_uri: qemu:///system
+  storage_dir: /var/lib/libvirt/images/k8-lab
+  base_image: /var/lib/libvirt/images/ubuntu-24.04-server-cloudimg-amd64.img
+  cloud_init_dir: /var/lib/libvirt/images/k8-lab/cloud-init
+  os_variant: ubuntu24.04
+  disk_format: qcow2
+  graphics: none
+  cpu_mode: host-passthrough
+  default_user: ubuntu
+  ssh_public_key: ssh-ed25519 AAAAEXAMPLE example@example
+
+vms:
+  - name: cp-01
+    hostname: cp-01
+    mac: "52:54:00:15:00:10"
+    vcpu: 2
+    memory_mb: 4096
+    os_disk_gb: 30
+    data_disks_gb: []
+    network:
+      ipv4: 192.168.150.10
+      gateway4: 192.168.150.1
+      dns4:
+        - 192.168.150.1
+    tags:
+      - k8s
+      - control-plane
+
+  - name: wk-01
+    hostname: wk-01
+    mac: "52:54:00:15:00:11"
+    vcpu: 3
+    memory_mb: 6144
+    os_disk_gb: 40
+    data_disks_gb: []
+    network:
+      ipv4: 192.168.150.11
+      gateway4: 192.168.150.1
+      dns4:
+        - 192.168.150.1
+    tags:
+      - k8s
+      - worker
+
+  - name: wk-02
+    hostname: wk-02
+    mac: "52:54:00:15:00:12"
+    vcpu: 3
+    memory_mb: 6144
+    os_disk_gb: 40
+    data_disks_gb: []
+    network:
+      ipv4: 192.168.150.12
+      gateway4: 192.168.150.1
+      dns4:
+        - 192.168.150.1
+    tags:
+      - k8s
+      - worker
+
+  - name: st-01
+    hostname: st-01
+    mac: "52:54:00:15:00:13"
+    vcpu: 2
+    memory_mb: 4096
+    os_disk_gb: 30
+    data_disks_gb:
+      - 80
+    network:
+      ipv4: 192.168.150.13
+      gateway4: 192.168.150.1
+      dns4:
+        - 192.168.150.1
+    tags:
+      - k8s
+      - storage

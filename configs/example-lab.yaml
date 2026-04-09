@@ -1,0 +1,60 @@
+tool:
+  name: example-lab
+  description: Example VM lab definition
+
+network:
+  name: lab-net
+  mode: nat
+  bridge: virbr-lab
+  subnet: 192.168.150.0/24
+  gateway: 192.168.150.1
+  dhcp_range_start: 192.168.150.100
+  dhcp_range_end: 192.168.150.199
+  domain: lab.internal
+  dns:
+    - 192.168.150.1
+
+defaults:
+  libvirt_uri: qemu:///system
+  storage_dir: /var/lib/libvirt/images/example-lab
+  base_image: /var/lib/libvirt/images/ubuntu-24.04-server-cloudimg-amd64.img
+  cloud_init_dir: /var/lib/libvirt/images/example-lab/cloud-init
+  os_variant: ubuntu24.04
+  disk_format: qcow2
+  graphics: none
+  cpu_mode: host-passthrough
+  default_user: ubuntu
+  ssh_public_key: ssh-ed25519 AAAAEXAMPLE example@example
+
+vms:
+  - name: vm-01
+    hostname: vm-01
+    mac: "52:54:00:15:00:10"
+    vcpu: 2
+    memory_mb: 4096
+    os_disk_gb: 30
+    data_disks_gb: []
+    network:
+      ipv4: 192.168.150.10
+      gateway4: 192.168.150.1
+      dns4:
+        - 192.168.150.1
+    tags:
+      - lab
+
+  - name: vm-02
+    hostname: vm-02
+    mac: "52:54:00:15:00:11"
+    vcpu: 2
+    memory_mb: 4096
+    os_disk_gb: 40
+    data_disks_gb:
+      - 60
+    network:
+      ipv4: 192.168.150.11
+      gateway4: 192.168.150.1
+      dns4:
+        - 192.168.150.1
+    tags:
+      - lab
+      - storage
