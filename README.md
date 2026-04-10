@@ -27,13 +27,13 @@ Instalar dependencias base:
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y qemu-system-x86 libvirt-daemon-system virtinst python3-yaml
+sudo apt-get install -y qemu-system-x86 libvirt-daemon-system virtinst python3-yaml cloud-image-utils
 ```
 
 Validar binarios principales:
 
 ```bash
-command -v python3 virsh virt-install qemu-img
+command -v python3 virsh virt-install qemu-img cloud-localds
 ```
 
 Validar `libvirt`:
@@ -85,6 +85,7 @@ sudo virsh console cp-01
 sudo virsh dumpxml cp-01
 sudo virsh net-list --all
 sudo virsh net-info k8-lab-net
+virsh net-dhcp-leases k8-lab-net
 ```
 
 ## Nota

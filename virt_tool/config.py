@@ -61,6 +61,7 @@ class NetworkConfig:
 class DefaultsConfig:
     libvirt_uri: str = "qemu:///system"
     storage_dir: str = "/var/lib/libvirt/images/virt-tool"
+    runtime_dir: str = "/tmp/virt-tool"
     os_variant: str = "ubuntu24.04"
     disk_format: str = "qcow2"
     graphics: str = "none"
@@ -128,7 +129,7 @@ class Config:
 
     @property
     def runtime_dir(self) -> Path:
-        return self.path.parent.parent / ".virt-tool"
+        return Path(self.defaults.runtime_dir) / self.tool.name
 
     @property
     def network_xml_path(self) -> Path:
@@ -270,6 +271,11 @@ def load_config(path: str | Path) -> Config:
             defaults_raw,
             "storage_dir",
             default="/var/lib/libvirt/images/virt-tool",
+        ),
+        runtime_dir=_get_str(
+            defaults_raw,
+            "runtime_dir",
+            default="/tmp/virt-tool",
         ),
         os_variant=_get_str(defaults_raw, "os_variant", default="ubuntu24.04"),
         disk_format=_get_str(defaults_raw, "disk_format", default="qcow2"),

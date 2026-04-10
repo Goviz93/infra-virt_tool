@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -13,6 +14,22 @@ class CommandError(Exception):
     pass
 
 
+def require_commands(*commands: str) -> None:
+    missing = [command for command in commands if shutil.which(command) is None]
+    if missing:
+        missing_list = ", ".join(missing)
+        raise CommandError(
+            f"Missing required command(s): {missing_list}. Install the host dependencies before running this step."
+        )
+
+
+def find_command(*commands: str) -> str | None:
+    for command in commands:
+        if shutil.which(command) is not None:
+            return command
+    return None
+
+
 def run(cmd: list[str], apply: bool) -> None:
     print(shlex.join(cmd))
     if apply:
@@ -22,6 +39,10 @@ def run(cmd: list[str], apply: bool) -> None:
 def capture(cmd: list[str]) -> str:
     result = subprocess.run(cmd, check=True, capture_output=True, text=True)
     return result.stdout
+
+
+def command_result(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(cmd, capture_output=True, text=True)
 
 
 def ensure_runtime_dir(config: Config) -> None:
@@ -200,6 +221,74 @@ def render_meta_data(config: Config, vm: VMConfig) -> str:
     )
 
 
+def cloud_init_seed_command(seed_iso: Path, user_data: Path, meta_data: Path) -> list[str]:
+    cloud_localds = find_command("cloud-localds")
+    if cloud_localds:
+        return [cloud_localds, str(seed_iso), str(user_data), str(meta_data)]
+
+    iso_builder = find_command("xorriso", "genisoimage", "mkisofs")
+    if iso_builder == "xorriso":
+        return [
+            iso_builder,
+            "-as",
+            "mkisofs",
+            "-volid",
+            "cidata",
+            "-joliet",
+            "-rock",
+            "-output",
+            str(seed_iso),
+            str(user_data),
+            str(meta_data),
+        ]
+    if iso_builder:
+        return [
+            iso_builder,
+            "-volid",
+            "cidata",
+            "-joliet",
+            "-rock",
+            "-output",
+            str(seed_iso),
+            str(user_data),
+            str(meta_data),
+        ]
+
+    raise CommandError(
+        "Missing required command(s): cloud-localds or an ISO builder fallback (xorriso, genisoimage, mkisofs)."
+    )
+
+
+def network_exists(config: Config) -> bool:
+    if not config.network:
+        return False
+    result = command_result(
+        [
+            "virsh",
+            "--connect",
+            config.defaults.libvirt_uri,
+            "net-info",
+            config.network.name,
+        ]
+    )
+    return result.returncode == 0
+
+
+def network_is_active(config: Config) -> bool:
+    if not config.network:
+        return False
+    result = command_result(
+        [
+            "virsh",
+            "--connect",
+            config.defaults.libvirt_uri,
+            "net-info",
+            config.network.name,
+        ]
+    )
+    return result.returncode == 0 and "Active:          yes" in result.stdout
+
+
 def cmd_validate(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     print(f"Config valid: {config.path}")
@@ -235,6 +324,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
     print("Defaults:")
     print(f"  libvirt_uri: {config.defaults.libvirt_uri}")
     print(f"  storage_dir: {config.defaults.storage_dir}")
+    print(f"  runtime_dir: {config.runtime_dir}")
     print(f"  base_image: {config.defaults.base_image or '(none)'}")
     print(f"  os_variant: {config.defaults.os_variant}")
     print(f"  disk_format: {config.defaults.disk_format}")
@@ -279,25 +369,36 @@ def cmd_render_network(args: argparse.Namespace) -> int:
 
 def cmd_create_network(args: argparse.Namespace) -> int:
     config = load_config(args.config)
+    require_commands("virsh")
     ensure_runtime_dir(config)
     xml = render_network_xml(config)
     config.network_xml_path.write_text(xml)
 
     print(f"Network XML: {config.network_xml_path}")
-    run(
-        [
-            "virsh",
-            "--connect",
-            config.defaults.libvirt_uri,
-            "net-define",
-            str(config.network_xml_path),
-        ],
-        apply=args.apply,
-    )
-    run(
-        ["virsh", "--connect", config.defaults.libvirt_uri, "net-start", config.network.name],
-        apply=args.apply,
-    )
+    define_cmd = [
+        "virsh",
+        "--connect",
+        config.defaults.libvirt_uri,
+        "net-define",
+        str(config.network_xml_path),
+    ]
+    if network_exists(config):
+        print(f"Network already defined: {config.network.name}")
+    else:
+        run(define_cmd, apply=args.apply)
+
+    start_cmd = [
+        "virsh",
+        "--connect",
+        config.defaults.libvirt_uri,
+        "net-start",
+        config.network.name,
+    ]
+    if network_is_active(config):
+        print(f"Network already active: {config.network.name}")
+    else:
+        run(start_cmd, apply=args.apply)
+
     if config.network and config.network.autostart:
         run(
             [
@@ -362,6 +463,7 @@ def create_disk_commands(config: Config, vm: VMConfig) -> list[list[str]]:
 
 def cmd_create_disks(args: argparse.Namespace) -> int:
     config = load_config(args.config)
+    require_commands("qemu-img")
     storage_dir = Path(config.defaults.storage_dir)
     print(f"Storage directory: {storage_dir}")
     if args.apply:
@@ -377,6 +479,11 @@ def cmd_create_disks(args: argparse.Namespace) -> int:
 
 def cmd_create_cloud_init(args: argparse.Namespace) -> int:
     config = load_config(args.config)
+    seed_builder = cloud_init_seed_command(
+        Path("/tmp/virt-tool-seed.iso"),
+        Path("/tmp/virt-tool-user-data"),
+        Path("/tmp/virt-tool-meta-data"),
+    )[0]
 
     if not config.defaults.ssh_public_key:
         raise CommandError(
@@ -399,20 +506,14 @@ def cmd_create_cloud_init(args: argparse.Namespace) -> int:
             user_data.write_text(render_user_data(config, vm))
             meta_data.write_text(render_meta_data(config, vm))
 
-        run(
-            [
-                "cloud-localds",
-                str(seed_iso),
-                str(user_data),
-                str(meta_data),
-            ],
-            apply=args.apply,
-        )
+        print(f"  builder: {seed_builder}")
+        run(cloud_init_seed_command(seed_iso, user_data, meta_data), apply=args.apply)
     return 0
 
 
 def cmd_create_vms(args: argparse.Namespace) -> int:
     config = load_config(args.config)
+    require_commands("virt-install")
     for vm in config.vms:
         print()
         print(f"Create VM: {vm.name}")
@@ -422,6 +523,12 @@ def cmd_create_vms(args: argparse.Namespace) -> int:
 
 def cmd_build(args: argparse.Namespace) -> int:
     config = load_config(args.config)
+    require_commands("virsh", "qemu-img", "virt-install")
+    cloud_init_seed_command(
+        Path("/tmp/virt-tool-seed.iso"),
+        Path("/tmp/virt-tool-user-data"),
+        Path("/tmp/virt-tool-meta-data"),
+    )
 
     print("== Build: network ==")
     build_args = argparse.Namespace(config=args.config, apply=args.apply)
