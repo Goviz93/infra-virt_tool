@@ -24,7 +24,7 @@ defaults:
   graphics: none
   cpu_mode: host-passthrough
   default_user: ubuntu
-  ssh_public_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGQDtjbytCX7lXIvKjGWhaUKGVnnIDDxumguxDKrcWqU k3-host@outlook.com
+  ssh_public_key: ssh-ed25519 bla bla bla ;D 
 
 vms:
   - name: cp-01
